@@ -16,8 +16,8 @@ Entities :: struct {
   available_slots: queue.Queue(uint),
 }
 
-create_entity :: proc(ctx: ^Context) -> Entity {
-  using ctx.entities
+create_entity :: proc() -> Entity {
+  using world.entities
 
   if queue.len(available_slots) <= 0 {
     append_elem(&entities, Entity_And_Some_Info{Entity(current_entity_id), true})
@@ -32,32 +32,34 @@ create_entity :: proc(ctx: ^Context) -> Entity {
   return Entity(current_entity_id)
 }
 
-is_entity_valid :: proc(ctx: ^Context, entity: Entity) -> bool {
-  if uint(entity) >= len(ctx.entities.entities) {
+is_entity_valid :: proc(entity: Entity) -> bool {
+  using world.entities
+  
+  if uint(entity) >= len(entities) {
     return false
   }
-  return ctx.entities.entities[uint(entity)].is_valid
+  return entities[uint(entity)].is_valid
 }
 
 // This is slow. 
 // This will be significantly faster when an archetype or sparse set ECS is implemented.
-get_entities_with_components :: proc(ctx: ^Context, components: []typeid) -> (entities: [dynamic]Entity) {
+get_entities_with_components :: proc(components: []typeid) -> (entities: [dynamic]Entity) {
   entities = make([dynamic]Entity)
 
   if len(components) <= 0 {
     return entities
   } else if len(components) == 1 {
-    for entity, _ in ctx.component_map[components[0]].entity_indices {
+    for entity, _ in world.component_map[components[0]].entity_indices {
       append_elem(&entities, entity)
     }
     return entities
   }
 
-  for entity, _ in ctx.component_map[components[0]].entity_indices {
+  for entity, _ in world.component_map[components[0]].entity_indices {
 
     has_all_components := true
     for comp_type in components[1:] {
-      if !has_component(ctx, entity, comp_type) {
+      if !has_component(entity, comp_type) {
         has_all_components = false
         break
       }
@@ -72,11 +74,11 @@ get_entities_with_components :: proc(ctx: ^Context, components: []typeid) -> (en
   return entities
 }
 
-destroy_entity :: proc(ctx: ^Context, entity: Entity) {
-  using ctx.entities
+destroy_entity :: proc(entity: Entity) {
+  using world.entities
   
-  for T, component in &ctx.component_map {
-    remove_component_with_typeid(ctx, entity, T)
+  for T, component in &world.component_map {
+    remove_component_with_typeid(entity, T)
   }
 
   entities[uint(entity)] = {}

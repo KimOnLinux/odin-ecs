@@ -11,14 +11,14 @@ Component_List :: struct {
 }
 
 @private
-register_component :: proc(ctx: ^Context, $T: typeid) -> ECS_Error {
-  is_type_a_key := T in ctx.component_map
+register_component :: proc($T: typeid) -> ECS_Error {
+  is_type_a_key := T in world.component_map
   if is_type_a_key {
     return .COMPONENT_IS_ALREADY_REGISTERED
   }
 
   array := new([dynamic]T)
-  ctx.component_map[T] = {
+  world.component_map[T] = {
     type = T,
     data = cast(^runtime.Raw_Dynamic_Array)array,
   }
@@ -27,14 +27,14 @@ register_component :: proc(ctx: ^Context, $T: typeid) -> ECS_Error {
   return .NO_ERROR
 }
 
-add_component :: proc(ctx: ^Context, entity: Entity, component: $T) -> (^T, ECS_Error) {
-  register_component(ctx, T)
+add_component :: proc(entity: Entity, component: $T) -> (^T, ECS_Error) {
+  register_component(T)
 
-  if has_component(ctx, entity, T) {
+  if has_component(entity, T) {
     return nil, .ENTITY_ALREADY_HAS_THIS_COMPONENT
   } 
-  array := cast(^[dynamic]T)ctx.component_map[T].data
-  comp_map := &ctx.component_map[T]
+  array := cast(^[dynamic]T)world.component_map[T].data
+  comp_map := &world.component_map[T]
   
   // Add a new component to the component array.
   append_elem(array, component) 
@@ -44,22 +44,22 @@ add_component :: proc(ctx: ^Context, entity: Entity, component: $T) -> (^T, ECS_
   return &array[comp_map.entity_indices[entity]], .NO_ERROR
 }
 
-has_component :: proc(ctx: ^Context, entity: Entity, T: typeid) -> bool {
-  return entity in (&ctx.component_map[T]).entity_indices
+has_component :: proc(entity: Entity, T: typeid) -> bool {
+  return entity in (&world.component_map[T]).entity_indices
 }
 
 @private
-remove_component_with_typeid :: proc(ctx: ^Context, entity: Entity, type_id: typeid) -> ECS_Error {
-  using ctx.entities
+remove_component_with_typeid :: proc(entity: Entity, type_id: typeid) -> ECS_Error {
+  using world.entities
 
-  if !has_component(ctx, entity, type_id) {
+  if !has_component(entity, type_id) {
     return .ENTITY_DOES_NOT_HAVE_THIS_COMPONENT
   }
-  index := ctx.component_map[type_id].entity_indices[entity]
+  index := world.component_map[type_id].entity_indices[entity]
 
-  array_len := ctx.component_map[type_id].data^.len
-  array := ctx.component_map[type_id].data^.data
-  comp_map := ctx.component_map[type_id]
+  array_len := world.component_map[type_id].data^.len
+  array := world.component_map[type_id].data^.data
+  comp_map := world.component_map[type_id]
 
   info := type_info_of(type_id)
   struct_size := info.size
@@ -82,18 +82,18 @@ remove_component_with_typeid :: proc(ctx: ^Context, entity: Entity, type_id: typ
   return .NO_ERROR
 }
 
-remove_component :: proc(ctx: ^Context, entity: Entity, $T: typeid) -> ECS_Error {
-  return remove_component_with_typeid(ctx, entity, T)
+remove_component :: proc(entity: Entity, $T: typeid) -> ECS_Error {
+  return remove_component_with_typeid(entity, T)
 }
 
-get_component :: proc(ctx: ^Context, entity: Entity, $T: typeid) -> (component: ^T, error: ECS_Error) {
+get_component :: proc(entity: Entity, $T: typeid) -> (component: ^T, error: ECS_Error) {
   
-  if !has_component(ctx, entity, T) {
+  if !has_component(entity, T) {
     return nil, .ENTITY_DOES_NOT_HAVE_THIS_COMPONENT
   }
 
-  array := cast(^[dynamic]T)ctx.component_map[T].data
-  index, is_entity_a_key := ctx.component_map[T].entity_indices[entity]
+  array := cast(^[dynamic]T)world.component_map[T].data
+  index, is_entity_a_key := world.component_map[T].entity_indices[entity]
   
   if !is_entity_a_key {
     return nil, .ENTITY_DOES_NOT_MAP_TO_ANY_INDEX
@@ -102,22 +102,22 @@ get_component :: proc(ctx: ^Context, entity: Entity, $T: typeid) -> (component: 
   return &array[index], .NO_ERROR
 }
 
-get_component_list :: proc(ctx: ^Context, $T: typeid) -> ([]T, ECS_Error) {
-  array := cast(^[dynamic]T)ctx.component_map[T].data
+get_component_list :: proc($T: typeid) -> ([]T, ECS_Error) {
+  array := cast(^[dynamic]T)world.component_map[T].data
 
   return array[:], .NO_ERROR
 }
 
-set_component :: proc(ctx: ^Context, entity: Entity, component: $T) -> ECS_Error {
-  if !has_component(ctx, entity, T) {
+set_component :: proc(entity: Entity, component: $T) -> ECS_Error {
+  if !has_component(entity, T) {
     return .COMPONENT_NOT_REGISTERED
   } 
-  index, is_entity_a_key := ctx.component_map[T].entity_indices[entity]
+  index, is_entity_a_key := world.component_map[T].entity_indices[entity]
 
   if !is_entity_a_key {
     return .ENTITY_DOES_NOT_MAP_TO_ANY_INDEX
   }
-  array := cast(^[dynamic]T)ctx.component_map[T].data
+  array := cast(^[dynamic]T)world.component_map[T].data
   array[index] = component;
   return .NO_ERROR
 }

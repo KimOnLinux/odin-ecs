@@ -17,30 +17,30 @@ Context :: struct {
   component_map: map[typeid]Component_List,
 }
 
-init_ecs :: proc() -> (ctx: Context) {
+world : Context
+
+init_ecs :: proc() {
   create_entities :: proc(ctx: ^Context) {
     ctx.entities.entities = make([dynamic]Entity_And_Some_Info)
     queue.init(&ctx.entities.available_slots)
   }
-  create_entities(&ctx)
+  create_entities(&world)
 
   create_component_map :: proc(ctx: ^Context) {
     ctx.component_map = make(map[typeid]Component_List)
   }
 
-  create_component_map(&ctx)
-
-  return ctx
+  create_component_map(&world)
 }
 
-deinit_ecs :: proc(ctx: ^Context) {
+deinit_ecs :: proc() {
 
   destroy_entities :: proc(ctx: ^Context) {
     delete(ctx.entities.entities)
     ctx.entities.current_entity_id = 0
     queue.destroy(&ctx.entities.available_slots)
   }
-  destroy_entities(ctx)
+  destroy_entities(&world)
 
   destroy_component_map :: proc(ctx: ^Context) {
     for key, value in ctx.component_map {
@@ -54,6 +54,6 @@ deinit_ecs :: proc(ctx: ^Context) {
   
     delete(ctx.component_map)
   }
-  destroy_component_map(ctx)
+  destroy_component_map(&world)
 }
 
